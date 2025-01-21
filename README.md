@@ -2,8 +2,12 @@
 
 Milestone 1)
 
--Diagramm
+- Presentation PDF (power point format) - video is missing (no idea for that) - challenges and difficulties (no idea for the moment)
 
--Explaination for first four micro services
+- Module 1: ok
 
--video (No idea...)
+- Module 2: seems ok but I have a problem with MongoDB on my computer so I can't test it good.
+
+- Module 3/ Module 4, I'll do that before this evening
+
+
