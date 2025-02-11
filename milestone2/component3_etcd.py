@@ -54,6 +54,9 @@ def get_registered_nodes(etcd):
 def leader_election(etcd):
     """Leader election"""
     lease = etcd.lease(10)
+    if leader:
+        print(f"Leader already elected: {leader[0].decode('utf-8')}")
+        return False
     if etcd.put_if_not_exists("/leader", NODE_ID, lease):
         print(f"Node {NODE_ID} as been elected leader.")
         return True
