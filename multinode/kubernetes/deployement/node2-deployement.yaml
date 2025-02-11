@@ -1,0 +1,26 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: node2-deployment
+  labels:
+    app: node2
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: node2
+  template:
+    metadata:
+      labels:
+        app: node2
+    spec:
+      containers:
+      - name: node2-container
+        image: node2-image
+        env:
+        - name: NODE_ID
+          value: "node2"
+        - name: NODE_IP
+          value: "178.18.0.3"
+        ports:
+        - containerPort: 50051
