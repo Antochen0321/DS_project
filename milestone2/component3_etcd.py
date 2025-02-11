@@ -1,5 +1,7 @@
 import etcd3
 import time
+import sys
+import os
 
 # this script need to be executed for every node, it's made to register every nodes informations and to elect the leader node
 
@@ -7,74 +9,73 @@ import time
 
 # for one local node (test) :
 
-"""etcd --name localnode --data-dir /tmp/etcd-data --listen-client-urls http://127.0.0.1:2379 --advertise-client-urls http://127.0.0.1:2379"""
+"""etcd --name node1 --data-dir /tmp/etcd-node1 --listen-client-urls http://0.0.0.0:2379 --advertise-client-urls http://127.0.0.1:2379 --listen-peer-urls http://0.0.0.0:2380 --initial-cluster node1=http://127.0.0.1:2380
+"""
 
-# for a server (if local, ip needs to be changed) :
+"""export NODE_ID=node1
+export NODE_IP=127.0.0.1
+python etcd_cluster.py
+"""
 
-"""etcd --name node1 --data-dir /tmp/etcd-data \
-     --listen-client-urls http://0.0.0.0:2379 \
-     --advertise-client-urls http://192.168.1.101:2379 \
-     --listen-peer-urls http://0.0.0.0:2380 \
-     --initial-advertise-peer-urls http://192.168.1.101:2380 \
-     --initial-cluster node1=http://192.168.1.101:2380,node2=http://192.168.1.102:2380,node3=http://192.168.1.103:2380 \
-     --initial-cluster-state new --initial-cluster-token etcd-cluster-1"""
+# CONFIGURATION
 
-# to verify if nodes are registered :
+NODE_ID = os.getenv('NODE_ID', 'node1') 
+NODE_IP = os.getenv('NODE_IP', '127.0.0.1')
 
-"""ETCDCTL_API=3 etcdctl get --prefix /
-/nodes/test_node"""
+# Configuration of ETCD local server
+ETCD_HOST = '127.0.0.1' #  Customoizable
+ETCD_PORT = 2379  # Customoizable
 
-# to clean registered node
+# SCRIPT
 
-"""rm -rf /tmp/etcd-data"""
+def connect_etcd():
+    """Used to connect to the local etcd server"""
+    try:
+        etcd = etcd3.client(host=ETCD_HOST, port=ETCD_PORT)
+        print(f"Connexion to {ETCD_HOST}:{ETCD_PORT}")
+        return etcd
+    except Exception as e:
+        print(f"Error : {e}")
+        sys.exit(1)
 
-### CONFIGURATION, MODIFY THE CODE HERE
-
-NODE_ID = "test_node"  # node information, node1 or node2 etcd
-NODE_IP = "127.0.0.1"  # put the ip adress of the current node
-ETCD_HOST = "127.0.0.1"  # put the adress used to launch the server, if the command above is used, do not modify
-ETCD_PORT = 2379  # etcd server port, if the command above is used, do not modify
-LEASE_TTL = 10  # Time duration used to elect the node leader
-
-### END OF CONFIGURATION, DO NOT MODIFY
-
-### SCRIPT :
-
-# Connexion to the cluster
-etcd = etcd3.client(host=ETCD_HOST, port=2379)  
-
-def register_node(node_id, ip):
-    """Register the node in etcd server"""
+def register_node(etcd, node_id, ip):
+    """Register a node inside the etcd server."""
+    print(f"Registration of the node {node_id} with this ip : {ip}")
     etcd.put(f"/nodes/{node_id}", ip)
-    print(f"Node {node_id} registered with this ip : {ip}")
 
-def get_registered_nodes():
-    """Take every registered node."""
+def get_registered_nodes(etcd):
+    """Get registered nodes from the server."""
     nodes = {}
     for value, metadata in etcd.get_prefix("/nodes/"):
         key = metadata.key.decode("utf-8").split("/")[-1]
         nodes[key] = value.decode("utf-8")
     return nodes
 
-def leader_election():
-    """Elect the good leader, the choice is based on etcd data."""
+def leader_election(etcd):
+    """Leader election"""
     lease = etcd.lease(10)
-    if etcd.put_if_not_exists("/leader", "node1", lease):
-        print("This node is the new leader")
+    if etcd.put_if_not_exists("/leader", NODE_ID, lease):
+        print(f"Node {NODE_ID} as been elected leader.")
         return True
-    print("Error: this node is not the leader, select the good node.")
+    print(f"Node {NODE_ID} is not the leader")
     return False
 
+def main():
+    etcd = connect_etcd()
 
-### MAIN SCRIPT PART
+    # Register the node
+    register_node(etcd, NODE_ID, NODE_IP)
+    time.sleep(1)
 
-if __name__ == "__main__":
-    print(f"\n--- {NODE_ID} launch ---")
+    # Print all registered nodes
+    print("\nRegistered Node:")
+    nodes = get_registered_nodes(etcd)
+    for node, ip in nodes.items():
+        print(f"{node} : {ip}")
     
-    register_node(NODE_ID, NODE_IP)
-    time.sleep(2)
+    # Elect the leader
+    leader_election(etcd)
 
-    nodes = get_registered_nodes()
-    print("\n Registered nodes:", nodes)
-
-    leader_election()
+# Execution of main function
+if __name__ == "__main__":
+    main()
