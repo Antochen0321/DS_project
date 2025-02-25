@@ -1,1 +1,0 @@
-This folders contain the configuration for the Kafka server.
