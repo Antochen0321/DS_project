@@ -1,0 +1,23 @@
+syntax = "proto3";
+
+package dbservice;
+
+service DatabaseService {
+    rpc CreateEntry (Entry) returns (Response);
+    rpc ReadEntry (Query) returns (Entry);
+    rpc UpdateEntry (Entry) returns (Response);
+    rpc DeleteEntry (Query) returns (Response);
+}
+
+message Entry {
+    string id = 1;
+    string data = 2;
+}
+
+message Query {
+    string id = 1;
+}
+
+message Response {
+    bool success = 1;
+}

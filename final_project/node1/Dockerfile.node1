@@ -1,0 +1,20 @@
+FROM python:3.13.1-slim
+
+
+WORKDIR /app
+
+COPY ./component3/etcd_cluster.py /app/
+COPY ./component3/ntp_sync.py /app/
+COPY ./component4/metrics_perfs.py /app/
+COPY ./component5/replication.py /app/
+COPY ./component6/resource_management.py /app/
+
+RUN pip install etcd3 ntplib requests
+
+ENV NODE_ID=node1
+ENV NODE_IP=178.18.0.2
+
+EXPOSE 50051
+
+CMD ["sh", "-c", "python ntp_sync.py && python etcd_cluster.py && python metrics_perfs.py && replication.py && resource_management.py"]
+
