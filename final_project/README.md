@@ -15,7 +15,7 @@ docker build -f ./multinode/node2/Dockerfile.node2 -t node2 .
 sudo systemctl start chronyd
 sudo systemctl enable chronyd
 
-# optional : to verify if all is good : sudo systemctl status chronyd
+#### optional : to verify if all is good : sudo systemctl status chronyd
 
 etcd --name node1 --data-dir /tmp/etcd-node1 --listen-client-urls http://0.0.0.0:2379 --advertise-client-urls http://172.18.0.2:2379 --listen-peer-urls http://0.0.0.0:2380 --initial-cluster node1=http://172.18.0.2:2380,node2=http://172.18.0.3:2380
 etcd --name node1 \
