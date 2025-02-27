@@ -1,0 +1,179 @@
+services:
+  etcd:
+    image: bitnami/etcd:latest
+    container_name: etcd
+    ports:
+      - "2379"
+    environment:
+      - ALLOW_NONE_AUTHENTICATION=yes
+    networks:
+      - my_network
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+    networks:
+      - my_network
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana-storage:/var/lib/grafana
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    networks:
+      - my_network
+
+  mongodb:
+    image: mongo:latest
+    container_name: mongodb
+    restart: always
+    ports:
+      - "27017:27017"
+    networks:
+      - my_network
+    volumes:
+      - mongo_data:/data/db
+
+  kafka:
+    image: confluentinc/cp-kafka:latest
+    container_name: kafka
+    restart: always
+    environment:
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_MESSAGE_MAX_BYTES: 104857600
+      KAFKA_REPLICA_FETCH_MAX_BYTES: 104857600
+    ports:
+      - "9092:9092"
+    networks:
+      - my_network
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:latest
+    container_name: zookeeper
+    restart: always
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+    networks:
+      - my_network
+
+  db_service_node1:
+    build:
+      context: ./node1/component2/db_service
+      dockerfile: Dockerfile
+    container_name: db_service_node1
+    depends_on:
+      - mongodb
+    networks:
+      - my_network
+    ports:
+      - "50051:50051"
+
+  db_service_node2:
+    build:
+      context: ./node2/component2/db_service
+      dockerfile: Dockerfile
+    container_name: db_service_node2
+    depends_on:
+      - mongodb
+    networks:
+      - my_network
+    ports:
+      - "50052:50051"
+
+  node1:
+    build:
+      context: ./node1
+      dockerfile: Dockerfile.node1
+    container_name: node1
+    depends_on:
+      - db_service_node1
+      - etcd 
+    environment:
+      - ETCD_HOST=etcd
+    networks:
+      - my_network
+
+  node2:
+    build:
+      context: ./node2
+      dockerfile: Dockerfile.node2
+    container_name: node2
+    depends_on:
+      - db_service_node2
+      - etcd
+    environment:
+      - ETCD_HOST=etcd
+    networks:
+      - my_network
+
+  api:
+    build:
+      context: ./component11/api
+      dockerfile: dockerfile.api
+    container_name: api
+    depends_on:
+      - kafka
+      - db_service_node1
+      - db_service_node2
+    ports:
+      - "8000:8000"
+    networks:
+      - my_network
+
+  worker:
+    build:
+      context: ./component11/worker
+      dockerfile: Dockerfile.worker
+    container_name: worker
+    depends_on:
+      - kafka
+    networks:
+      - my_network
+  node1_coordinator:
+    build:
+      context: ./node1/LLM 
+      dockerfile: Dockerfile.LLM_node1
+    container_name: node1_coordinator
+    depends_on:
+      - kafka
+      - etcd
+    environment:
+      - ETCD_HOST=etcd
+      - WORKER_URL=http://node2_worker:8001
+    ports:
+      - "8000"
+    networks:
+      - my_network
+  node2_worker:
+    build:
+      context: ./node2/LLM
+      dockerfile: Dockerfile.LLM_node2
+    container_name: node2_worker
+    depends_on:
+      - kafka
+      - etcd
+    environment:
+      - ETCD_HOST=etcd
+    ports:
+      - "8001"
+    networks:
+      - my_network
+
+networks:
+  my_network:
+    driver: bridge
+
+volumes:
+  mongo_data:
+  grafana-storage:
